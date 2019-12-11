@@ -39,7 +39,7 @@ function Configuration(options) {
     }
 
     // common
-    self.TASK_RESULT_EXPIRES = self.TASK_RESULT_EXPIRES * 1000 || 86400000; // Default 1 day
+    self.TASK_RESULT_EMITTED_EXPIRES = self.TASK_RESULT_EMITTED_EXPIRES * 1000 || 5000; // Default 5 seconds
 
     // broker
     self.BROKER_OPTIONS = self.BROKER_OPTIONS || {};
@@ -154,13 +154,13 @@ function RedisBackend(conf) {
         debug('Backend connected...');
         // on redis result..
         self.redis.on('pmessage', function(pattern, channel, data) {
-            self.redis_ex.expire(channel, conf.TASK_RESULT_EXPIRES / 1000);
             var message = JSON.parse(data);
             var taskid = channel.slice(key_prefix.length);
             if (self.results.hasOwnProperty(taskid)) {
                 var res = self.results[taskid];
                 res.result = message;
                 res.emit('ready', res.result);
+                self.redis_ex.expire(channel, conf.TASK_RESULT_EMITTED_EXPIRES / 1000);
                 delete self.results[taskid];
             } else {
                 // in case of incoming messages where we don't have the result object
